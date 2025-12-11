@@ -240,15 +240,34 @@ export function migrateSettingsToV1(
 
   // Preserve provider credentials in security.auth (V2 format)
   // These are new fields that don't have V1 equivalents, so we keep them in V2 format
+  // But only if there are actual provider credentials (not just selectedType, etc.)
   const security = v2Settings['security'] as Record<string, unknown> | undefined;
   if (security && typeof security === 'object') {
     const auth = security['auth'] as Record<string, unknown> | undefined;
     if (auth && typeof auth === 'object') {
-      // Preserve the entire security.auth structure with provider credentials
-      if (!v1Settings['security']) {
-        v1Settings['security'] = {};
+      // Fields that have V1 mappings and should not be preserved in security.auth
+      const migratedAuthFields = ['selectedType', 'useExternal'];
+      
+      // Check if there are any provider credentials (openai, blackbox, openrouter, etc.)
+      const providerKeys = ['openai', 'blackbox', 'openrouter', 'custom', 'anthropic', 'google', 'xai'];
+      const hasProviderCredentials = providerKeys.some(key => {
+        const provider = auth[key];
+        return provider && typeof provider === 'object' && Object.keys(provider).length > 0;
+      });
+      
+      // Check if there are any non-migrated fields in auth (excluding provider keys and migrated fields)
+      const authKeys = Object.keys(auth);
+      const hasNonMigratedFields = authKeys.some(key => 
+        !migratedAuthFields.includes(key) && !providerKeys.includes(key)
+      );
+      
+      // Only preserve security.auth if there are actual provider credentials or non-migrated fields
+      if (hasProviderCredentials || hasNonMigratedFields) {
+        if (!v1Settings['security']) {
+          v1Settings['security'] = {};
+        }
+        (v1Settings['security'] as Record<string, unknown>)['auth'] = auth;
       }
-      (v1Settings['security'] as Record<string, unknown>)['auth'] = auth;
     }
   }
 
@@ -274,6 +293,34 @@ export function migrateSettingsToV1(
   }
 
   return v1Settings;
+}
+
+function hasAuthProviderValues(
+  provider: 'openai' | 'blackbox' | 'openrouter',
+  ...settings: Settings[]
+): boolean {
+  return settings.some((s) => {
+    const auth = s.security?.auth?.[provider];
+    return auth && typeof auth === 'object' && Object.keys(auth).length > 0;
+  });
+}
+
+function hasAnyAuthValues(...settings: Settings[]): boolean {
+  return settings.some((s) => {
+    const auth = s.security?.auth;
+    if (!auth || typeof auth !== 'object') return false;
+    
+    // Check if there are any non-provider properties
+    const nonProviderKeys = Object.keys(auth).filter(
+      k => !['openai', 'blackbox', 'openrouter', 'custom', 'anthropic', 'google', 'xai'].includes(k)
+    );
+    if (nonProviderKeys.length > 0) return true;
+    
+    // Check if any provider has values
+    return hasAuthProviderValues('openai', ...settings) ||
+           hasAuthProviderValues('blackbox', ...settings) ||
+           hasAuthProviderValues('openrouter', ...settings);
+  });
 }
 
 function mergeSettings(
@@ -307,6 +354,64 @@ function mergeSettings(
   //
   // For properties that are arrays (e.g., includeDirectories), the arrays
   // are concatenated. For objects (e.g., customThemes), they are merged.
+  
+  // Build security object conditionally
+  const securityBase = {
+    ...(systemDefaults.security || {}),
+    ...(user.security || {}),
+    ...(safeWorkspaceWithoutFolderTrust.security || {}),
+    ...(system.security || {}),
+  };
+  
+  // Only add auth if there are actual values
+  const securityResult: Settings['security'] = hasAnyAuthValues(
+    systemDefaults,
+    user,
+    safeWorkspaceWithoutFolderTrust,
+    system,
+  )
+    ? {
+        ...securityBase,
+        auth: {
+          ...(systemDefaults.security?.auth || {}),
+          ...(user.security?.auth || {}),
+          ...(safeWorkspaceWithoutFolderTrust.security?.auth || {}),
+          ...(system.security?.auth || {}),
+          // Only include provider objects if they have values
+          ...(hasAuthProviderValues('openai', systemDefaults, user, safeWorkspaceWithoutFolderTrust, system)
+            ? {
+                openai: {
+                  ...(systemDefaults.security?.auth?.openai || {}),
+                  ...(user.security?.auth?.openai || {}),
+                  ...(safeWorkspaceWithoutFolderTrust.security?.auth?.openai || {}),
+                  ...(system.security?.auth?.openai || {}),
+                },
+              }
+            : {}),
+          ...(hasAuthProviderValues('blackbox', systemDefaults, user, safeWorkspaceWithoutFolderTrust, system)
+            ? {
+                blackbox: {
+                  ...(systemDefaults.security?.auth?.blackbox || {}),
+                  ...(user.security?.auth?.blackbox || {}),
+                  ...(safeWorkspaceWithoutFolderTrust.security?.auth?.blackbox || {}),
+                  ...(system.security?.auth?.blackbox || {}),
+                },
+              }
+            : {}),
+          ...(hasAuthProviderValues('openrouter', systemDefaults, user, safeWorkspaceWithoutFolderTrust, system)
+            ? {
+                openrouter: {
+                  ...(systemDefaults.security?.auth?.openrouter || {}),
+                  ...(user.security?.auth?.openrouter || {}),
+                  ...(safeWorkspaceWithoutFolderTrust.security?.auth?.openrouter || {}),
+                  ...(system.security?.auth?.openrouter || {}),
+                },
+              }
+            : {}),
+        },
+      }
+    : securityBase;
+
   return {
     ...systemDefaults,
     ...user,
@@ -348,36 +453,7 @@ function mergeSettings(
       ...(safeWorkspaceWithoutFolderTrust.telemetry || {}),
       ...(system.telemetry || {}),
     },
-    security: {
-      ...(systemDefaults.security || {}),
-      ...(user.security || {}),
-      ...(safeWorkspaceWithoutFolderTrust.security || {}),
-      ...(system.security || {}),
-      auth: {
-        ...(systemDefaults.security?.auth || {}),
-        ...(user.security?.auth || {}),
-        ...(safeWorkspaceWithoutFolderTrust.security?.auth || {}),
-        ...(system.security?.auth || {}),
-        openai: {
-          ...(systemDefaults.security?.auth?.openai || {}),
-          ...(user.security?.auth?.openai || {}),
-          ...(safeWorkspaceWithoutFolderTrust.security?.auth?.openai || {}),
-          ...(system.security?.auth?.openai || {}),
-        },
-        blackbox: {
-          ...(systemDefaults.security?.auth?.blackbox || {}),
-          ...(user.security?.auth?.blackbox || {}),
-          ...(safeWorkspaceWithoutFolderTrust.security?.auth?.blackbox || {}),
-          ...(system.security?.auth?.blackbox || {}),
-        },
-        openrouter: {
-          ...(systemDefaults.security?.auth?.openrouter || {}),
-          ...(user.security?.auth?.openrouter || {}),
-          ...(safeWorkspaceWithoutFolderTrust.security?.auth?.openrouter || {}),
-          ...(system.security?.auth?.openrouter || {}),
-        },
-      },
-    },
+    security: securityResult,
     mcp: {
       ...(systemDefaults.mcp || {}),
       ...(user.mcp || {}),

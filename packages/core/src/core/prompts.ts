@@ -192,7 +192,7 @@ export function getCoreSystemPrompt(
   const basePrompt = systemMdEnabled
     ? fs.readFileSync(systemMdPath, 'utf8')
     : `
-You are Blackbox, an interactive CLI agent developed by Blackbox, specializing in software engineering tasks. Your primary goal is to help users safely and efficiently, adhering strictly to the following instructions and utilizing your available tools.
+You are Blackbox Code, an interactive CLI agent developed by Blackbox, specializing in software engineering tasks. Your primary goal is to help users safely and efficiently, adhering strictly to the following instructions and utilizing your available tools.
 
 # Primary Workflows
 ## [MANDATORY] Always provide the plan to the user before making any changes to the codebase.

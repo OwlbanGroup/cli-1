@@ -155,6 +155,7 @@ describe('useSlashCommandProcessor', () => {
         mockOpenModelSelectionDialog,
         vi.fn(), // openSubagentCreateDialog
         vi.fn(), // openAgentsManagerDialog
+        vi.fn(), // openHistoryBrowser
         vi.fn(), // toggleVimEnabled
         setIsProcessing,
         vi.fn(), // setGeminiMdFileCount
@@ -926,6 +927,7 @@ describe('useSlashCommandProcessor', () => {
           vi.fn(), // openModelSelectionDialog
           vi.fn(), // openSubagentCreateDialog
           vi.fn(), // openAgentsManagerDialog
+          vi.fn(), // openHistoryBrowser
           vi.fn(), // toggleVimEnabled
           vi.fn(), // setIsProcessing
           vi.fn(), // setGeminiMdFileCount
