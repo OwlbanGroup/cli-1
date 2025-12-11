@@ -52,6 +52,12 @@ export const validateAuthMethod = (authMethod: string): string | null => {
     return null;
   }
 
+  if (authMethod === AuthType.OWL_BAN_UNLIMITED) {
+    // Owlban OAuth (unlimited access) doesn't require any environment variables
+    // The OAuth flow will handle authentication with unlimited endpoints
+    return null;
+  }
+
   if (authMethod === AuthType.USE_BLACKBOX_API) {
     if (!process.env['BLACKBOX_API_KEY']) {
       return 'BLACKBOX_API_KEY environment variable not found. You can enter it interactively or add it to your .env file.';

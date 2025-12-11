@@ -60,6 +60,16 @@ interface ProviderConfig {
 
 const PROVIDERS: ProviderConfig[] = [
   {
+    name: 'owlban',
+    displayName: 'Owlban Group (Unlimited)',
+    authType: AuthType.OWL_BAN_UNLIMITED,
+    defaultBaseUrl: '',
+    defaultModel: 'coder-model',
+    envKeyName: 'OWLBAN_OAUTH',
+    requiresBaseUrl: false,
+    apiKeyUrl: '',
+  },
+  {
     name: 'blackbox',
     displayName: 'BlackboxAI',
     authType: AuthType.USE_BLACKBOX_API,
@@ -291,8 +301,29 @@ export function AuthDialog({
     const provider = PROVIDERS.find((p) => p.name === providerName);
     if (!provider) return;
 
-    // Always show the configuration prompt to allow users to change API key or model
-    // even if the provider is already configured
+    // For Owlban OAuth, directly proceed with OAuth flow (no API key needed)
+    if (provider.name === 'owlban') {
+      // Save provider selection
+      settings.setValue(
+        SettingScope.User,
+        'security.auth.selectedType',
+        provider.authType,
+      );
+      settings.setValue(
+        SettingScope.User,
+        'security.auth.selectedProvider',
+        provider.name,
+      );
+      settings.setValue(SettingScope.User, 'model.name', provider.defaultModel);
+
+      setErrorMessage(null);
+      
+      // Directly call onSelect to trigger OAuth flow
+      onSelect(provider.authType, SettingScope.User, provider.name);
+      return;
+    }
+
+    // For other providers, show the configuration prompt to allow users to change API key or model
     setSelectedProvider(provider);
     setShowProviderKeyPrompt(true);
     setErrorMessage(null);

@@ -49,6 +49,7 @@ export enum AuthType {
   CLOUD_SHELL = 'cloud-shell',
   USE_OPENAI = 'openai',
   BLACKBOX_OAUTH = 'blackbox-oauth',
+  OWL_BAN_UNLIMITED = 'owlban-unlimited',
   USE_BLACKBOX_API = 'blackbox-api',
 }
 
@@ -156,6 +157,18 @@ export function createContentGeneratorConfig(
     return contentGeneratorConfig;
   }
 
+  if (authType === AuthType.OWL_BAN_UNLIMITED) {
+    // For Owlban OAuth (unlimited access), handle API key dynamically in createContentGenerator
+    // Set a special marker to indicate this is Owlban OAuth
+    contentGeneratorConfig.apiKey = 'OWLBAN_OAUTH_DYNAMIC_TOKEN';
+
+    // Use the same default model as Blackbox
+    contentGeneratorConfig.model =
+      process.env['OWLBAN_MODEL'] || DEFAULT_BLACKBOX_MODEL;
+
+    return contentGeneratorConfig;
+  }
+
   if (authType === AuthType.USE_BLACKBOX_API && blackboxApiKey) {
     contentGeneratorConfig.apiKey = blackboxApiKey;
     contentGeneratorConfig.baseUrl = blackboxApiBaseUrl || 'https://api.blackbox.ai';
@@ -249,6 +262,28 @@ export async function createContentGenerator(
     } catch (error) {
       throw new Error(
         `Failed to initialize Blackbox: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  if (config.authType === AuthType.OWL_BAN_UNLIMITED) {
+    // Import required classes dynamically
+    const { getBlackboxOwlbanOAuthClient } = await import(
+      '../blackbox/blackboxOAuth2.js'
+    );
+    const { BlackboxContentGenerator } = await import(
+      '../blackbox/blackboxContentGenerator.js'
+    );
+
+    try {
+      // Get the Owlban OAuth client (unlimited access for Owlban Group staff)
+      const owlbanClient = await getBlackboxOwlbanOAuthClient(gcConfig);
+
+      // Create the content generator with dynamic token management
+      return new BlackboxContentGenerator(owlbanClient, config, gcConfig);
+    } catch (error) {
+      throw new Error(
+        `Failed to initialize Owlban OAuth: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }

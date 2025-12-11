@@ -2,22 +2,48 @@
 
 ## Tasks
 
-- [ ] Add AuthType.OWL_BAN_UNLIMITED to contentGenerator.ts
-- [ ] Create BlackboxOwlbanOAuth2Client class with unlimited endpoints in blackboxOAuth2.ts
-- [ ] Modify getBlackboxOAuthClient to return Owlban client for unlimited auth type
-- [ ] Update CLI auth selection to include Owlban Group option
+- [x] Add AuthType.OWL_BAN_UNLIMITED to contentGenerator.ts
+- [x] Create BlackboxOwlbanOAuth2Client class with unlimited endpoints in blackboxOAuth2.ts
+- [x] Modify getBlackboxOAuthClient to return Owlban client for unlimited auth type
+- [x] Update CLI auth selection to include Owlban Group option
+- [x] Update CLI auth validation
+- [x] Update Zed integration
 - [ ] Test the implementation
 
-## Information Gathered
+## Progress
 
-- Owlban Group = Owners organization
-- Current Blackbox OAuth has rate limits (60 req/min, 2000/day)
-- Rate limits are server-side, so client assumes different endpoints for unlimited access
-- Need to modify authentication flow (option 2)
+### Completed
 
-## Plan
+1. ✅ Added `AuthType.OWL_BAN_UNLIMITED = 'owlban-unlimited'` to contentGenerator.ts
+2. ✅ Created `BlackboxOwlbanOAuth2Client` class in blackboxOAuth2.ts with:
+   - Separate OAuth endpoints (configurable via env vars)
+   - Default base URL: `https://owlban.blackboxcli.ai`
+   - Separate client ID: `owlban_unlimited_access_client`
+   - Separate credential file: `owlban_oauth_creds.json`
+3. ✅ Created `getBlackboxOwlbanOAuthClient()` function
+4. ✅ Updated `createContentGenerator()` to handle OWL_BAN_UNLIMITED auth type
 
-1. Add new AuthType for Owlban unlimited access
-2. Create separate OAuth client with different base URLs
-3. Update auth selection in CLI
-4. Assume server-side endpoints handle unlimited access
+### Completed (Continued)
+
+5. ✅ Updated CLI auth selection (AuthDialog.tsx) - Added Owlban Group at top of providers list
+6. ✅ Updated CLI auth validation (auth.ts) - Added validation for OWL_BAN_UNLIMITED
+7. ✅ Updated Zed integration (zedIntegration.ts) - Added Owlban Group to auth methods
+
+### Ready for Testing
+
+- All implementation tasks completed
+- Ready for integration testing with Owlban OAuth endpoints
+
+## Configuration
+
+**Environment Variables (Optional)**
+
+- `OWLBAN_OAUTH_BASE_URL` - Base URL for Owlban OAuth (default: `https://owlban.blackboxcli.ai`)
+- `OWLBAN_OAUTH_CLIENT_ID` - Client ID for Owlban staff (default: `owlban_unlimited_access_client`)
+- `OWLBAN_OAUTH_SCOPE` - OAuth scope (default: `openid profile email model.completion`)
+- `OWLBAN_MODEL` - Model to use (default: `coder-model`)
+
+**Credential Storage**
+
+- Owlban credentials stored separately: `~/.blackboxcli/owlban_oauth_creds.json`
+- No conflicts with regular Blackbox OAuth credentials

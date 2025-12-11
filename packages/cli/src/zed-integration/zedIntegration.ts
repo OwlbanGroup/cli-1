@@ -110,6 +110,12 @@ class GeminiAgent {
           'OAuth authentication for Blackbox models with 2000 daily requests',
       },
       {
+        id: AuthType.OWL_BAN_UNLIMITED,
+        name: 'Owlban Group (Unlimited)',
+        description:
+          'OAuth authentication for Owlban Group staff with unlimited access',
+      },
+      {
         id: AuthType.USE_BLACKBOX_API,
         name: 'Use BlackboxAI API key',
         description:

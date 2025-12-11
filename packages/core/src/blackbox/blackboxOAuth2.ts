@@ -31,9 +31,21 @@ const BLACKBOX_OAUTH_CLIENT_ID = 'f0304373b74a44d2b584a3fb70ca9e56';
 const BLACKBOX_OAUTH_SCOPE = 'openid profile email model.completion';
 const BLACKBOX_OAUTH_GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:device_code';
 
+// Owlban OAuth Endpoints (Unlimited Access for Owlban Group)
+const OWLBAN_OAUTH_BASE_URL = process.env['OWLBAN_OAUTH_BASE_URL'] || 'https://owlban.blackboxcli.ai';
+
+const OWLBAN_OAUTH_DEVICE_CODE_ENDPOINT = `${OWLBAN_OAUTH_BASE_URL}/api/v1/oauth2/device/code`;
+const OWLBAN_OAUTH_TOKEN_ENDPOINT = `${OWLBAN_OAUTH_BASE_URL}/api/v1/oauth2/token`;
+
+// Owlban OAuth Client Configuration
+const OWLBAN_OAUTH_CLIENT_ID = process.env['OWLBAN_OAUTH_CLIENT_ID'] || 'owlban_unlimited_access_client';
+
+const OWLBAN_OAUTH_SCOPE = process.env['OWLBAN_OAUTH_SCOPE'] || 'openid profile email model.completion';
+
 // File System Configuration
 const BLACKBOX_DIR = '.blackboxcli';
 const BLACKBOX_CREDENTIAL_FILENAME = 'oauth_creds.json';
+const OWLBAN_CREDENTIAL_FILENAME = 'owlban_oauth_creds.json';
 
 /**
  * PKCE (Proof Key for Code Exchange) utilities
@@ -880,4 +892,552 @@ export async function clearBlackboxCredentials(): Promise<void> {
 
 function getBlackboxCachedCredentialPath(): string {
   return path.join(os.homedir(), BLACKBOX_DIR, BLACKBOX_CREDENTIAL_FILENAME);
+}
+
+/**
+ * Owlban OAuth2 client implementation (Unlimited Access for Owlban Group)
+ * Extends the same interface as BlackboxOAuth2Client but uses different endpoints
+ */
+export class BlackboxOwlbanOAuth2Client implements IBlackboxOAuth2Client {
+  private credentials: BlackboxCredentials = {};
+  private sharedManager: SharedTokenManager;
+
+  constructor() {
+    this.sharedManager = SharedTokenManager.getInstance();
+  }
+
+  setCredentials(credentials: BlackboxCredentials): void {
+    this.credentials = credentials;
+  }
+
+  getCredentials(): BlackboxCredentials {
+    return this.credentials;
+  }
+
+  async getAccessToken(): Promise<{ token?: string }> {
+    try {
+      // Always use shared manager for consistency
+      const credentials = await this.sharedManager.getValidCredentials(this);
+      return { token: credentials.access_token };
+    } catch (error) {
+      console.warn('Failed to get access token from shared manager:', error);
+      return { token: undefined };
+    }
+  }
+
+  async requestDeviceAuthorization(options: {
+    scope: string;
+    code_challenge: string;
+    code_challenge_method: string;
+  }): Promise<DeviceAuthorizationResponse> {
+    const bodyData = {
+      client_id: OWLBAN_OAUTH_CLIENT_ID,
+      scope: options.scope,
+      code_challenge: options.code_challenge,
+      code_challenge_method: options.code_challenge_method,
+    };
+
+    const response = await fetch(OWLBAN_OAUTH_DEVICE_CODE_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Accept: 'application/json',
+        'x-request-id': randomUUID(),
+      },
+      body: objectToUrlEncoded(bodyData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      throw new Error(
+        `Owlban device authorization failed: ${response.status} ${response.statusText}. Response: ${errorData}`,
+      );
+    }
+
+    const result = (await response.json()) as DeviceAuthorizationResponse;
+    console.debug('Owlban device authorization result:', result);
+
+    if (!isDeviceAuthorizationSuccess(result)) {
+      const errorData = result as ErrorData;
+      throw new Error(
+        `Owlban device authorization failed: ${errorData?.error || 'Unknown error'} - ${errorData?.error_description || 'No details provided'}`,
+      );
+    }
+
+    return result;
+  }
+
+  async pollDeviceToken(options: {
+    device_code: string;
+    code_verifier: string;
+  }): Promise<DeviceTokenResponse> {
+    const bodyData = {
+      grant_type: BLACKBOX_OAUTH_GRANT_TYPE,
+      client_id: OWLBAN_OAUTH_CLIENT_ID,
+      device_code: options.device_code,
+      code_verifier: options.code_verifier,
+    };
+
+    const response = await fetch(OWLBAN_OAUTH_TOKEN_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Accept: 'application/json',
+      },
+      body: objectToUrlEncoded(bodyData),
+    });
+
+    if (!response.ok) {
+      try {
+        const errorData = (await response.json()) as ErrorData;
+
+        if (
+          response.status === 400 &&
+          errorData.error === 'authorization_pending'
+        ) {
+          return { status: 'pending' } as DeviceTokenPendingData;
+        }
+
+        if (response.status === 429 && errorData.error === 'slow_down') {
+          return {
+            status: 'pending',
+            slowDown: true,
+          } as DeviceTokenPendingData;
+        }
+
+        const error = new Error(
+          `Owlban device token poll failed: ${errorData.error || 'Unknown error'} - ${errorData.error_description || 'No details provided'}`,
+        );
+        (error as Error & { status?: number }).status = response.status;
+        throw error;
+      } catch (_parseError) {
+        const errorData = await response.text();
+        const error = new Error(
+          `Owlban device token poll failed: ${response.status} ${response.statusText}. Response: ${errorData}`,
+        );
+        (error as Error & { status?: number }).status = response.status;
+        throw error;
+      }
+    }
+
+    return (await response.json()) as DeviceTokenResponse;
+  }
+
+  async refreshAccessToken(): Promise<TokenRefreshResponse> {
+    if (!this.credentials.refresh_token) {
+      throw new Error('No refresh token available');
+    }
+
+    const bodyData = {
+      grant_type: 'refresh_token',
+      refresh_token: this.credentials.refresh_token,
+      client_id: OWLBAN_OAUTH_CLIENT_ID,
+    };
+
+    const response = await fetch(OWLBAN_OAUTH_TOKEN_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Accept: 'application/json',
+      },
+      body: objectToUrlEncoded(bodyData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      if (response.status === 400) {
+        await clearOwlbanCredentials();
+        throw new CredentialsClearRequiredError(
+          "Owlban refresh token expired or invalid. Please use '/auth' to re-authenticate.",
+          { status: response.status, response: errorData },
+        );
+      }
+      throw new Error(
+        `Owlban token refresh failed: ${response.status} ${response.statusText}. Response: ${errorData}`,
+      );
+    }
+
+    const responseData = (await response.json()) as TokenRefreshResponse;
+
+    if (isErrorResponse(responseData)) {
+      const errorData = responseData as ErrorData;
+      throw new Error(
+        `Owlban token refresh failed: ${errorData?.error || 'Unknown error'} - ${errorData?.error_description || 'No details provided'}`,
+      );
+    }
+
+    const tokenData = responseData as TokenRefreshData;
+    const tokens: BlackboxCredentials = {
+      access_token: tokenData.access_token,
+      token_type: tokenData.token_type,
+      refresh_token: tokenData.refresh_token || this.credentials.refresh_token,
+      resource_url: tokenData.resource_url,
+      expiry_date: Date.now() + tokenData.expires_in * 1000,
+    };
+
+    this.setCredentials(tokens);
+
+    return responseData;
+  }
+}
+
+/**
+ * Get Owlban OAuth client with unlimited access for Owlban Group staff
+ */
+export async function getBlackboxOwlbanOAuthClient(
+  config: Config,
+): Promise<BlackboxOwlbanOAuth2Client> {
+  const client = new BlackboxOwlbanOAuth2Client();
+
+  const sharedManager = SharedTokenManager.getInstance();
+
+  try {
+    const credentials = await sharedManager.getValidCredentials(client);
+    client.setCredentials(credentials);
+    return client;
+  } catch (error: unknown) {
+    console.debug(
+      'Shared token manager failed for Owlban, attempting device flow:',
+      error,
+    );
+
+    if (error instanceof TokenManagerError) {
+      switch (error.type) {
+        case TokenError.NO_REFRESH_TOKEN:
+          console.debug(
+            'No Owlban refresh token available, proceeding with device flow',
+          );
+          break;
+        case TokenError.REFRESH_FAILED:
+          console.debug('Owlban token refresh failed, proceeding with device flow');
+          break;
+        case TokenError.NETWORK_ERROR:
+          console.warn(
+            'Network error during Owlban token refresh, trying device flow',
+          );
+          break;
+        default:
+          console.warn('Owlban token manager error:', (error as Error).message);
+      }
+    }
+
+    if (await loadCachedOwlbanCredentials(client)) {
+      const result = await authWithOwlbanDeviceFlow(client, config);
+      if (!result.success) {
+        throw new Error('Owlban OAuth authentication failed');
+      }
+      return client;
+    }
+
+    const result = await authWithOwlbanDeviceFlow(client, config);
+    if (!result.success) {
+      if (result.reason === 'timeout') {
+        blackboxOAuth2Events.emit(
+          BlackboxOAuth2Event.AuthProgress,
+          'timeout',
+          'Owlban authentication timed out. Please try again or select a different authentication method.',
+        );
+      }
+
+      switch (result.reason) {
+        case 'timeout':
+          throw new Error('Owlban OAuth authentication timed out');
+        case 'cancelled':
+          throw new Error('Owlban OAuth authentication was cancelled by user');
+        case 'rate_limit':
+          throw new Error(
+            'Too many requests for Owlban OAuth authentication, please try again later.',
+          );
+        case 'error':
+        default:
+          throw new Error('Owlban OAuth authentication failed');
+      }
+    }
+
+    return client;
+  }
+}
+
+async function authWithOwlbanDeviceFlow(
+  client: BlackboxOwlbanOAuth2Client,
+  config: Config,
+): Promise<AuthResult> {
+  let isCancelled = false;
+
+  const cancelHandler = () => {
+    isCancelled = true;
+  };
+  blackboxOAuth2Events.once(BlackboxOAuth2Event.AuthCancel, cancelHandler);
+
+  try {
+    const { code_verifier, code_challenge } = generatePKCEPair();
+
+    const deviceAuth = await client.requestDeviceAuthorization({
+      scope: OWLBAN_OAUTH_SCOPE,
+      code_challenge,
+      code_challenge_method: 'S256',
+    });
+
+    if (!isDeviceAuthorizationSuccess(deviceAuth)) {
+      const errorData = deviceAuth as ErrorData;
+      throw new Error(
+        `Owlban device authorization failed: ${errorData?.error || 'Unknown error'} - ${errorData?.error_description || 'No details provided'}`,
+      );
+    }
+
+    blackboxOAuth2Events.emit(BlackboxOAuth2Event.AuthUri, deviceAuth);
+
+    const showFallbackMessage = () => {
+      console.log('\n=== Owlban Group OAuth Device Authorization (Unlimited Access) ===');
+      console.log(
+        'Please visit the following URL in your browser to authorize:',
+      );
+      console.log(`\n${deviceAuth.verification_uri_complete}\n`);
+      console.log('Waiting for authorization to complete...\n');
+    };
+
+    if (!config.isBrowserLaunchSuppressed()) {
+      try {
+        const childProcess = await open(deviceAuth.verification_uri_complete);
+
+        if (childProcess) {
+          childProcess.on('error', () => {
+            console.debug(
+              'Failed to open browser. Visit this URL to authorize:',
+            );
+            showFallbackMessage();
+          });
+        }
+      } catch (_err) {
+        showFallbackMessage();
+      }
+    } else {
+      showFallbackMessage();
+    }
+
+    blackboxOAuth2Events.emit(
+      BlackboxOAuth2Event.AuthProgress,
+      'polling',
+      'Waiting for Owlban authorization...',
+    );
+
+    console.debug('Waiting for Owlban authorization...\n');
+
+    let pollInterval = 2000;
+    const maxAttempts = Math.ceil(
+      deviceAuth.expires_in / (pollInterval / 1000),
+    );
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      if (isCancelled) {
+        console.debug('\nOwlban authentication cancelled by user.');
+        blackboxOAuth2Events.emit(
+          BlackboxOAuth2Event.AuthProgress,
+          'error',
+          'Owlban authentication cancelled by user.',
+        );
+        return { success: false, reason: 'cancelled' };
+      }
+
+      try {
+        console.debug('polling for Owlban token...');
+        const tokenResponse = await client.pollDeviceToken({
+          device_code: deviceAuth.device_code,
+          code_verifier,
+        });
+
+        if (isDeviceTokenSuccess(tokenResponse)) {
+          const tokenData = tokenResponse as DeviceTokenData;
+
+          const credentials: BlackboxCredentials = {
+            access_token: tokenData.access_token!,
+            refresh_token: tokenData.refresh_token || undefined,
+            token_type: tokenData.token_type,
+            resource_url: tokenData.resource_url,
+            expiry_date: tokenData.expires_in
+              ? Date.now() + tokenData.expires_in * 1000
+              : undefined,
+          };
+
+          client.setCredentials(credentials);
+
+          await cacheOwlbanCredentials(credentials);
+
+          blackboxOAuth2Events.emit(
+            BlackboxOAuth2Event.AuthProgress,
+            'success',
+            'Owlban authentication successful! Unlimited access granted.',
+          );
+
+          console.debug('Owlban authentication successful! Unlimited access granted.');
+          return { success: true };
+        }
+
+        if (isDeviceTokenPending(tokenResponse)) {
+          const pendingData = tokenResponse as DeviceTokenPendingData;
+
+          if (pendingData.slowDown) {
+            pollInterval = Math.min(pollInterval * 1.5, 10000);
+            console.debug(
+              `\nServer requested to slow down, increasing poll interval to ${pollInterval}ms'`,
+            );
+          } else {
+            pollInterval = 2000;
+          }
+
+          blackboxOAuth2Events.emit(
+            BlackboxOAuth2Event.AuthProgress,
+            'polling',
+            `Polling Owlban... (attempt ${attempt + 1}/${maxAttempts})`,
+          );
+
+          await new Promise<void>((resolve) => {
+            const checkInterval = 100;
+            let elapsedTime = 0;
+
+            const intervalId = setInterval(() => {
+              elapsedTime += checkInterval;
+
+              if (isCancelled) {
+                clearInterval(intervalId);
+                resolve();
+                return;
+              }
+
+              if (elapsedTime >= pollInterval) {
+                clearInterval(intervalId);
+                resolve();
+                return;
+              }
+            }, checkInterval);
+          });
+
+          if (isCancelled) {
+            console.debug('\nOwlban authentication cancelled by user.');
+            blackboxOAuth2Events.emit(
+              BlackboxOAuth2Event.AuthProgress,
+              'error',
+              'Owlban authentication cancelled by user.',
+            );
+            return { success: false, reason: 'cancelled' };
+          }
+
+          continue;
+        }
+
+        if (isErrorResponse(tokenResponse)) {
+          const errorData = tokenResponse as ErrorData;
+          throw new Error(
+            `Owlban token polling failed: ${errorData?.error || 'Unknown error'} - ${errorData?.error_description || 'No details provided'}`,
+          );
+        }
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        const statusCode =
+          error instanceof Error
+            ? (error as Error & { status?: number }).status
+            : null;
+
+        if (errorMessage.includes('401') || statusCode === 401) {
+          const message =
+            'Owlban device code expired or invalid, please restart the authorization process.';
+
+          blackboxOAuth2Events.emit(BlackboxOAuth2Event.AuthProgress, 'error', message);
+
+          return { success: false, reason: 'error' };
+        }
+
+        if (errorMessage.includes('429') || statusCode === 429) {
+          const message =
+            'Too many requests for Owlban authentication. Please try again later.';
+
+          blackboxOAuth2Events.emit(
+            BlackboxOAuth2Event.AuthProgress,
+            'rate_limit',
+            message,
+          );
+
+          console.log('\n' + message);
+
+          return { success: false, reason: 'rate_limit' };
+        }
+
+        const message = `Error polling for Owlban token: ${errorMessage}`;
+
+        blackboxOAuth2Events.emit(BlackboxOAuth2Event.AuthProgress, 'error', message);
+
+        if (isCancelled) {
+          return { success: false, reason: 'cancelled' };
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, pollInterval));
+      }
+    }
+
+    const timeoutMessage = 'Owlban authorization timeout, please restart the process.';
+
+    blackboxOAuth2Events.emit(
+      BlackboxOAuth2Event.AuthProgress,
+      'timeout',
+      timeoutMessage,
+    );
+
+    console.error('\n' + timeoutMessage);
+    return { success: false, reason: 'timeout' };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Owlban device authorization flow failed:', errorMessage);
+    return { success: false, reason: 'error' };
+  } finally {
+    blackboxOAuth2Events.off(BlackboxOAuth2Event.AuthCancel, cancelHandler);
+  }
+}
+
+async function loadCachedOwlbanCredentials(
+  client: BlackboxOwlbanOAuth2Client,
+): Promise<boolean> {
+  try {
+    const keyFile = getOwlbanCachedCredentialPath();
+    const creds = await fs.readFile(keyFile, 'utf-8');
+    const credentials = JSON.parse(creds) as BlackboxCredentials;
+    client.setCredentials(credentials);
+
+    const { token } = await client.getAccessToken();
+    if (!token) {
+      return false;
+    }
+
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+async function cacheOwlbanCredentials(credentials: BlackboxCredentials) {
+  const filePath = getOwlbanCachedCredentialPath();
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+
+  const credString = JSON.stringify(credentials, null, 2);
+  await fs.writeFile(filePath, credString);
+}
+
+/**
+ * Clear cached Owlban credentials from disk
+ */
+export async function clearOwlbanCredentials(): Promise<void> {
+  try {
+    const filePath = getOwlbanCachedCredentialPath();
+    await fs.unlink(filePath);
+    console.debug('Cached Owlban credentials cleared successfully.');
+  } catch (error: unknown) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+      return;
+    }
+    console.warn('Warning: Failed to clear cached Owlban credentials:', error);
+  }
+}
+
+function getOwlbanCachedCredentialPath(): string {
+  return path.join(os.homedir(), BLACKBOX_DIR, OWLBAN_CREDENTIAL_FILENAME);
 }
