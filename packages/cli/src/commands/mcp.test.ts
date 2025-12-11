@@ -20,7 +20,8 @@ describe('mcp command', () => {
   it('should have exactly one option (help flag)', () => {
     // Test to ensure that the global 'gemini' flags are not added to the mcp command
     const yargsInstance = yargs();
-    const builtYargs = mcpCommand.builder(yargsInstance);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const builtYargs = (mcpCommand.builder as any)(yargsInstance);
     const options = builtYargs.getOptions();
 
     // Should have exactly 1 option (help flag)
@@ -35,7 +36,8 @@ describe('mcp command', () => {
       version: vi.fn().mockReturnThis(),
     };
 
-    mcpCommand.builder(mockYargs as unknown as Argv);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (mcpCommand.builder as any)(mockYargs as unknown as Argv);
 
     expect(mockYargs.command).toHaveBeenCalledTimes(3);
 
@@ -43,7 +45,7 @@ describe('mcp command', () => {
     const commandCalls = mockYargs.command.mock.calls;
     const commandNames = commandCalls.map((call) => call[0].command);
 
-    expect(commandNames).toContain('add <name> <commandOrUrl> [args...]');
+    expect(commandNames).toContain('add <name> [commandOrUrl] [args...]');
     expect(commandNames).toContain('remove <name>');
     expect(commandNames).toContain('list');
 

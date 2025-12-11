@@ -84,8 +84,9 @@ describe('getInstallationInfo', () => {
 
     expect(info.packageManager).toBe(PackageManager.UNKNOWN);
     expect(info.isGlobal).toBe(false);
+    expect(info.updateCommand).toBe('blackbox update');
     expect(info.updateMessage).toBe(
-      'Running from a local git clone. Please update with "git pull".',
+      'Please run: blackbox update to update your CLI installation.',
     );
   });
 

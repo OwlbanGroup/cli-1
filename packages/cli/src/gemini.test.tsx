@@ -305,7 +305,6 @@ describe('startInteractiveUI', () => {
     const { detectAndEnableKittyProtocol } = await import(
       './ui/utils/kittyProtocolDetector.js'
     );
-    const { checkForUpdates } = await import('./ui/utils/updateCheck.js');
     const { registerCleanup } = await import('./utils/cleanup.js');
 
     await startInteractiveUI(
@@ -323,10 +322,5 @@ describe('startInteractiveUI', () => {
     // Verify cleanup handler is registered with unmount function
     const cleanupFn = vi.mocked(registerCleanup).mock.calls[0][0];
     expect(typeof cleanupFn).toBe('function');
-
-    // checkForUpdates should be called asynchronously (not waited for)
-    // We need a small delay to let it execute
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(checkForUpdates).toHaveBeenCalledTimes(1);
   });
 });

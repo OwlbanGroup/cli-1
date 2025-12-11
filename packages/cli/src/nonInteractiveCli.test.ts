@@ -15,7 +15,7 @@ import {
 } from '@blackbox_ai/blackbox-cli-core';
 import { type Part } from '@google/genai';
 import { runNonInteractive } from './nonInteractiveCli.js';
-import { vi } from 'vitest';
+import { vi, beforeEach, afterEach, describe, it, expect } from 'vitest';
 
 // Mock core modules
 vi.mock('./ui/hooks/atCommandProcessor.js');
@@ -68,6 +68,11 @@ describe('runNonInteractive', () => {
       getFullContext: vi.fn().mockReturnValue(false),
       getContentGeneratorConfig: vi.fn().mockReturnValue({}),
       getDebugMode: vi.fn().mockReturnValue(false),
+      getListCheckpoints: vi.fn().mockReturnValue(false),
+      getResumeCheckpoint: vi.fn().mockReturnValue(undefined),
+      getSaveCheckpoint: vi.fn().mockReturnValue(undefined),
+      getAutoSave: vi.fn().mockReturnValue(false),
+      getSupressToolIterationErrors: vi.fn().mockReturnValue(false),
     } as unknown as Config;
 
     const { handleAtCommand } = await import(
