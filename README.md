@@ -1,12 +1,6 @@
 # Blackbox Code
 
-<div align="center">
-
 ![Blackbox Code Screenshot](./docs/assets/blackbox-screenshot.png)
-
-
-</div>
-
 
 ## Key Features
 
@@ -25,7 +19,6 @@ Ensure you have [Node.js version 20](https://nodejs.org/en/download) or higher i
 curl -qL https://www.npmjs.com/install.sh | sh
 ```
 
-
 ### Install from source
 
 ```bash
@@ -34,7 +27,6 @@ cd cli
 npm install
 npm install -g .
 ```
-
 
 ## Quick Start
 
@@ -47,6 +39,41 @@ blackbox
 > Help me refactor this function
 > Generate unit tests for this module
 ```
+
+## Next Steps
+
+After getting started with Blackbox Code, here are some recommended next steps to maximize your productivity:
+
+### 1. Explore Advanced Features
+
+- Configure session token limits and vision model settings as described in the sections above
+- Experiment with workflow automation for repetitive tasks
+- Try multimodal analysis by including images in your queries
+
+### 2. Dive Deeper into Documentation
+
+- [CLI Tutorials](./docs/cli/tutorials.md) - Step-by-step guides for common tasks
+- [IDE Integration](./docs/ide-integration.md) - Connect Blackbox Code with your favorite editor
+- [Subagents](./docs/subagents.md) - Learn about multi-agent parallelism for complex tasks
+- [Tools API](./docs/core/tools-api.md) - Extend Blackbox Code with custom tools
+
+### 3. Customize Your Experience
+
+- Set up authentication and API keys for programmatic access
+- Configure themes and keyboard shortcuts
+- Explore integration with your development workflow
+
+### 4. Contribute and Get Help
+
+- Check out the [Contributing Guide](./CONTRIBUTING.md) to help improve Blackbox Code
+- Report issues or request features on our [GitHub repository](https://github.com/blackboxaicode/cli)
+- Join the community discussions for tips and best practices
+
+### 5. Advanced Usage
+
+- Learn about [Checkpointing](./docs/checkpointing.md) for long-running tasks
+- Set up [Telemetry](./docs/telemetry.md) for usage analytics
+- Explore [Sandbox](./docs/sandbox.md) for isolated testing environments
 
 ### Session Management
 
@@ -93,7 +120,6 @@ If you don't want to see the interactive dialog each time, configure the default
 - **`"persist"`** - Continue with current model (no switching)
 - **Not set** - Show interactive dialog each time (default)
 
-
 #### Disable Vision Models (Optional)
 
 To completely disable vision model support, add to your `.blackboxcli/settings.json`:
@@ -119,11 +145,9 @@ For programmatic access or advanced use cases, you can authenticate using an API
 1. Navigate to the [API Keys section](https://app.blackbox.ai/dashboard) of your BLACKBOX dashboard
 2. Your API key will be displayed on this page
 3. Click the copy icon to copy the key to your clipboard
-4. Run `blackbox configure` and you will be able to set the key 
-
+4. Run `blackbox configure` and you will be able to set the key
 
 > **Important:** Treat your API key like a password! Do not share it publicly or commit it to version control.
-
 
 ## Usage Examples
 
@@ -223,7 +247,7 @@ blackbox
 
 ## Commands & Shortcuts
 
-### Session Commands
+### CLI Commands
 
 - `/help` - Display available commands
 - `/clear` - Clear conversation history
