@@ -39,6 +39,39 @@ function urlMatches(urlArray: string[], targetUrl: string): boolean {
 }
 
 /**
+ * Determines the tool call format based on the model name
+ */
+function getToolCallFormat(model?: string): 'xml' | 'json' | 'bracket' {
+  if (!model) return 'bracket';
+  const modelLower = model.toLowerCase();
+  if (modelLower.startsWith('blackbox3-coder')) return 'xml';
+  if (modelLower.startsWith('blackbox-vl')) return 'json';
+  return 'bracket';
+}
+
+/**
+ * Generates tool call examples based on the specified format
+ */
+function getToolCallExamples(format: 'xml' | 'json' | 'bracket'): string {
+  switch (format) {
+    case 'xml':
+      return `<tool_call>
+<function=run_shell_command>
+<parameter=command>node server.js &</parameter>
+<parameter=is_background>true</parameter>
+</function>
+</tool_call>`;
+    case 'json':
+      return `<tool_call>
+{"name": "run_shell_command", "arguments": {"command": "node server.js &", "is_background": true}}
+</tool_call>`;
+    case 'bracket':
+    default:
+      return `[tool_call: run_shell_command for starting the development server because it must run in the background]`;
+  }
+}
+
+/**
  * Processes a custom system instruction by appending user memory if available.
  * This function should only be used when there is actually a custom instruction.
  *
@@ -418,6 +451,7 @@ ${isNonInteractive ? '' :'- **Confirm Ambiguity/Expansion:** Do not take signifi
 - **Parallelism:** Execute multiple independent tool calls in parallel when feasible (i.e. searching the codebase).
 - **Command Execution:** Use the '${ToolNames.SHELL}' tool for running shell commands, remembering the safety rule to explain modifying commands first.
 - **Background Processes:** Use background processes (via \`&\`) for commands that are unlikely to stop on their own, e.g. \`node server.js &\`. If unsure, ask the user.
+  - **Tool Call Example:** ${getToolCallExamples(getToolCallFormat(model))}
 - **Interactive Commands:** Try to avoid shell commands that are likely to require user interaction (e.g. \`git rebase -i\`). Use non-interactive versions of commands (e.g. \`npm init -y\` instead of \`npm init\`) when available, and otherwise remind the user that interactive shell commands are not supported and may cause hangs until canceled by the user.
 - **Task Management:** Use the '${ToolNames.TODO_WRITE}' tool to capture the important steps in the plan , track progress and provide visibility to users. This tool helps organize work systematically and ensures no requirements are missed.
 - **Subagent Delegation:** When doing file search, prefer to use the '${ToolNames.TASK}' tool in order to reduce context usage. You should proactively use the '${ToolNames.TASK}' tool with specialized agents when the task at hand matches the agent's description.

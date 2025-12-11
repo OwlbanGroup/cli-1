@@ -23,8 +23,8 @@ vi.mock('../telemetry/loggers.js', () => ({
   logApiResponse: vi.fn(),
 }));
 
-const TOOL_CALL_LOOP_THRESHOLD = 5;
-const CONTENT_LOOP_THRESHOLD = 10;
+const TOOL_CALL_LOOP_THRESHOLD = 10;
+const CONTENT_LOOP_THRESHOLD = 20;
 const CONTENT_CHUNK_SIZE = 50;
 
 describe('LoopDetectionService', () => {

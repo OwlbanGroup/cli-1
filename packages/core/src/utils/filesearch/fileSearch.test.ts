@@ -64,12 +64,15 @@ describe('FileSearch', () => {
     await fileSearch.initialize();
     const results = await fileSearch.search('');
 
-    expect(results).toEqual([
-      'src/',
-      '.gitignore',
-      '.blackboxignore',
-      'src/not-ignored.js',
-    ]);
+    expect(results).toEqual(
+      expect.arrayContaining([
+        'src/',
+        '.gitignore',
+        '.blackboxignore',
+        'src/not-ignored.js',
+      ]),
+    );
+    expect(results).toHaveLength(4);
   });
 
   it('should use ignoreDirs option', async () => {

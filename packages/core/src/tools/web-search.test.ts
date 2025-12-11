@@ -27,7 +27,8 @@ describe('WebSearchTool', () => {
     const mockConfigInstance = {
       getGeminiClient: () => mockGeminiClient,
       getProxy: () => undefined,
-      getTavilyApiKey: () => 'test-api-key', // Add the missing method
+      getTavilyApiKey: () => 'test-api-key',
+      getContentGeneratorConfig: () => ({ authType: 'api_key' }),
     } as unknown as Config;
     mockGeminiClient = new GeminiClient(mockConfigInstance);
     tool = new WebSearchTool(mockConfigInstance);

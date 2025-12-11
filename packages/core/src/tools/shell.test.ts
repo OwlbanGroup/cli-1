@@ -206,10 +206,9 @@ describe('ShellTool', () => {
 
       await promise;
 
-      const tmpFile = path.join(os.tmpdir(), 'shell_pgrep_abcdef.tmp');
-      const wrappedCommand = `{ npm start & }; __code=$?; pgrep -g 0 >${tmpFile} 2>&1; exit $__code;`;
+      // Background commands now include log file redirection
       expect(mockShellExecutionService).toHaveBeenCalledWith(
-        wrappedCommand,
+        expect.stringMatching(/\{ npm start > ".*shell_tool_.*\.log" 2>&1 & \}; __code=\$\?; pgrep -g 0 >.*shell_pgrep_abcdef\.tmp 2>&1; exit \$__code;/),
         expect.any(String),
         expect.any(Function),
         mockAbortSignal,
@@ -232,10 +231,9 @@ describe('ShellTool', () => {
 
       await promise;
 
-      const tmpFile = path.join(os.tmpdir(), 'shell_pgrep_abcdef.tmp');
-      const wrappedCommand = `{ npm start & }; __code=$?; pgrep -g 0 >${tmpFile} 2>&1; exit $__code;`;
+      // Background commands now include log file redirection, and trailing & is removed before adding redirection
       expect(mockShellExecutionService).toHaveBeenCalledWith(
-        wrappedCommand,
+        expect.stringMatching(/\{ npm start > ".*shell_tool_.*\.log" 2>&1 & \}; __code=\$\?; pgrep -g 0 >.*shell_pgrep_abcdef\.tmp 2>&1; exit \$__code;/),
         expect.any(String),
         expect.any(Function),
         mockAbortSignal,
@@ -448,8 +446,7 @@ describe('ShellTool', () => {
         });
 
         // It should have been called once now with the combined output.
-        expect(updateOutputMock).toHaveBeenCalledOnce();
-        expect(updateOutputMock).toHaveBeenCalledWith('hello world');
+        expect(updateOutputMock).toHaveBeenCalledExactlyOnceWith('hello world');
 
         resolveExecutionPromise({
           rawOutput: Buffer.from(''),
