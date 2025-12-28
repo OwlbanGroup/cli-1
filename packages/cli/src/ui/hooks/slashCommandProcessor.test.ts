@@ -56,7 +56,7 @@ vi.mock('../../services/McpPromptLoader.js', () => ({
 }));
 
 vi.mock('../contexts/SessionContext.js', () => ({
-  useSessionStats: vi.fn(() => ({ stats: {} })),
+  useSessionStats: vi.fn(() => ({ stats: { sessionStartTime: new Date() } })),
 }));
 
 const { mockRunExitCleanup } = vi.hoisted(() => ({
