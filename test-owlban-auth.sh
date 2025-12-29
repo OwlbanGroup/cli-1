@@ -92,7 +92,7 @@ check_string_in_file "packages/cli/src/config/auth.ts" "OWL_BAN_UNLIMITED" "CLI 
 check_string_in_file "packages/cli/src/ui/components/AuthDialog.tsx" "Owlban Group" "AuthDialog includes Owlban Group option"
 
 # Test 7: Verify Zed integration includes Owlban
-check_string_in_file "packages/cli/src/zed-integration/zedIntegration.ts" "owlban" "Zed integration includes Owlban authentication"
+check_string_in_file "packages/cli/src/zed-integration/zedIntegration.ts" "Owlban" "Zed integration includes Owlban authentication"
 
 echo ""
 echo "Phase 3: Configuration Verification"
