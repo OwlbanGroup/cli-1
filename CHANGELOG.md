@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+
 - `create-task` command to create tasks in Blackbox Cloud directly from the CLI
   - Support for interactive and non-interactive modes
   - Validation for GitHub, GitLab, and Bitbucket repositories
@@ -94,7 +95,7 @@
 - Updated documentation links and added IDE integration documentation.
 - Miscellaneous improvements and bug fixes.
 
-## 0.0.9
+## 0.0.8
 
 - Synced upstream `gemini-cli` to v0.1.19.
 - Updated documentation branding from **Gemini CLI** to **Blackbox Code**.
@@ -123,9 +124,6 @@
 - Fixed `EPERM` error when running `blackbox --sandbox` on macOS.
 - Fixed terminal flicker while waiting for login.
 - Fixed `glm-4.5` model request error.
-
-## 0.0.6
-
-- Added Blackbox OAuth login and up to 2,000 free requests per day.
+- Added Blackbox OAuth login and up to 8,000 free requests per day.
 - Synced upstream `gemini-cli` to v0.1.17.
 - Added the `systemPromptMappings` configuration option.

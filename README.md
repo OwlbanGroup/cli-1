@@ -40,7 +40,7 @@ blackbox
 > Generate unit tests for this module
 ```
 
-## CLI Commands
+## Commands
 
 ### Create Tasks in Blackbox Cloud
 

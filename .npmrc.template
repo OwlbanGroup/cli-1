@@ -1,0 +1,20 @@
+# NPM Configuration Template for @blackbox_ai/blackbox-cli
+# 
+# Save this as .npmrc in your home directory or project root
+# Replace YOUR_GRANULAR_TOKEN with your actual npm token from:
+# https://npmjs.com/settings/YOUR_USERNAME/tokens
+#
+# To use:
+# 1. Copy token from npmjs.com
+# 2. Add line below with your token
+# 3. Run: npm publish
+#
+# Token expires after 90 days of inactivity
+
+//registry.npmjs.org/:_authToken=YOUR_GRANULAR_TOKEN_HERE
+
+# Optional: Configure default registry
+registry=https://registry.npmjs.org/
+
+# Optional: Set scope registry
+@blackbox_ai:registry=https://registry.npmjs.org/
