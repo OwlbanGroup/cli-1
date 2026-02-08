@@ -40,12 +40,31 @@ blackbox
 > Generate unit tests for this module
 ```
 
+## CLI Commands
+
+### Create Tasks in Blackbox Cloud
+
+Submit code improvement requests directly from the CLI:
+
+```bash
+blackbox create-task --prompt "Your task" --repo https://github.com/user/repo
+```
+
+Or use interactive mode:
+
+```bash
+blackbox create-task
+```
+
+See [Create Task Documentation](./docs/cli/create-task.md) for detailed usage, examples, and troubleshooting.
+
 ## Next Steps
 
 After getting started with Blackbox Code, here are some recommended next steps to maximize your productivity:
 
 ### 1. Explore Advanced Features
 
+- Create tasks in Blackbox Cloud with the `create-task` command
 - Configure session token limits and vision model settings as described in the sections above
 - Experiment with workflow automation for repetitive tasks
 - Try multimodal analysis by including images in your queries

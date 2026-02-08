@@ -7,6 +7,7 @@ Within Blackbox Code, `packages/cli` is the frontend for users to send and recei
 - **[Authentication](./authentication.md):** A guide to setting up authentication with Blackbox OAuth and OpenAI-compatible providers.
 - **[Commands](./commands.md):** A reference for Blackbox Code CLI commands (e.g., `/help`, `/tools`, `/theme`).
 - **[Configuration](./configuration.md):** A guide to tailoring Blackbox Code CLI behavior using configuration files.
+- **[Create Task](./create-task.md):** Submit code improvement requests to Blackbox Cloud directly from the CLI.
 - **[Token Caching](./token-caching.md):** Optimize API costs through token caching.
 - **[Themes](./themes.md)**: A guide to customizing the CLI's appearance with different themes.
 - **[Tutorials](tutorials.md)**: A tutorial showing how to use Blackbox Code to automate a development task.

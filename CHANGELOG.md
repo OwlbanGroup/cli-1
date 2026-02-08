@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- `create-task` command to create tasks in Blackbox Cloud directly from the CLI
+  - Support for interactive and non-interactive modes
+  - Validation for GitHub, GitLab, and Bitbucket repositories
+  - Environment variable support for API key (`BB_API_KEY`)
+  - Comprehensive error handling and user-friendly messages
+  - Full documentation with examples and troubleshooting guide
+
 ## 0.0.14
 
 - Added plan mode support for task planning
