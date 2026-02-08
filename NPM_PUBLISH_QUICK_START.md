@@ -121,6 +121,14 @@ npm notice tab size that will be used for this package is 2 (!)
 
 ## 🎁 After Publication
 
+### Step 5: Verify Publication (Optional)
+
+```bash
+node scripts/verify-publish.js
+```
+
+This checks that your package is live on npm registry.
+
 ### Users can install with
 
 ```bash
