@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CreateTaskRequest } from '@blackbox_ai/blackbox-cli-core';
+import type { CreateTaskRequest } from '@blackbox_ai/blackbox-cli-core';
 
 /**
  * Validates that a string is a valid URL

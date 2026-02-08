@@ -156,17 +156,22 @@ export const setBlackboxCloudApiKey = (apiKey: string): void => {
   process.env['BB_API_KEY'] = apiKey;
 };
 
+type CredentialField = 'apiKey' | 'baseUrl' | 'model';
+
+const CREDENTIAL_FIELD_NAMES: Record<CredentialField, string> = {
+  apiKey: 'apiKey',
+  baseUrl: 'baseUrl',
+  model: 'model',
+};
+
 const getCredentialFieldName = (
-  credentialType: 'apiKey' | 'baseUrl' | 'model'
-): string =>
-  credentialType === 'apiKey' ? 'apiKey' : 
-  credentialType === 'baseUrl' ? 'baseUrl' : 
-  'model';
+  credentialType: CredentialField
+): string => CREDENTIAL_FIELD_NAMES[credentialType];
 
 const setSingleCredential = (
   settings: LoadedSettings,
   provider: string,
-  credentialType: 'apiKey' | 'baseUrl' | 'model',
+  credentialType: CredentialField,
   value: string | undefined
 ): void => {
   if (!value) return;
@@ -192,28 +197,39 @@ export const saveProviderCredentials = (
   setSingleCredential(settings, provider, 'model', model);
 };
 
+const ENV_VAR_MAPPING: Record<'OPENAI' | 'BLACKBOX_API', Record<string, string>> = {
+  OPENAI: {
+    apiKey: 'OPENAI_API_KEY',
+    baseUrl: 'OPENAI_BASE_URL',
+    model: 'OPENAI_MODEL',
+  },
+  BLACKBOX_API: {
+    apiKey: 'BLACKBOX_API_KEY',
+    baseUrl: 'BLACKBOX_API_BASE_URL',
+    model: 'BLACKBOX_API_MODEL',
+  },
+};
+
+const setEnvVar = (
+  prefix: 'OPENAI' | 'BLACKBOX_API',
+  field: 'apiKey' | 'baseUrl' | 'model',
+  value: string | undefined
+): void => {
+  if (!value || typeof value !== 'string') return;
+  const envVar = ENV_VAR_MAPPING[prefix][field];
+  if (envVar && !process.env[envVar]) {
+    process.env[envVar] = value;
+  }
+};
 
 const loadProviderEnvVars = (
   config: Record<string, unknown> | undefined,
   envVarPrefix: 'OPENAI' | 'BLACKBOX_API'
 ): void => {
   if (!config) return;
-  const apiKey = config['apiKey'];
-  const baseUrl = config['baseUrl'];
-  const model = config['model'];
-
-  if (apiKey && typeof apiKey === 'string') {
-    const apiKeyVar = envVarPrefix === 'BLACKBOX_API' ? 'BLACKBOX_API_KEY' : 'OPENAI_API_KEY';
-    if (!process.env[apiKeyVar]) process.env[apiKeyVar] = apiKey;
-  }
-  if (baseUrl && typeof baseUrl === 'string') {
-    const baseUrlVar = envVarPrefix === 'BLACKBOX_API' ? 'BLACKBOX_API_BASE_URL' : 'OPENAI_BASE_URL';
-    if (!process.env[baseUrlVar]) process.env[baseUrlVar] = baseUrl;
-  }
-  if (model && typeof model === 'string') {
-    const modelVar = envVarPrefix === 'BLACKBOX_API' ? 'BLACKBOX_API_MODEL' : 'OPENAI_MODEL';
-    if (!process.env[modelVar]) process.env[modelVar] = model;
-  }
+  setEnvVar(envVarPrefix, 'apiKey', config['apiKey'] as string | undefined);
+  setEnvVar(envVarPrefix, 'baseUrl', config['baseUrl'] as string | undefined);
+  setEnvVar(envVarPrefix, 'model', config['model'] as string | undefined);
 };
 
 const loadOpenAICredentials = (config: Record<string, unknown> | undefined): void => {

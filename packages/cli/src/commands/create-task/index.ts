@@ -38,7 +38,7 @@ async function runCreateTask(): Promise<void> {
       );
     }
 
-    if (!apiKey || !apiKey.startsWith('bb_')) {
+    if (!apiKey?.startsWith('bb_')) {
       throw new Error('Invalid API key format. API key should start with "bb_"');
     }
 
