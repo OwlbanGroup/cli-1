@@ -7,65 +7,62 @@
 import { AuthType } from '@blackbox_ai/blackbox-cli-core';
 import { loadEnvironment, type LoadedSettings, SettingScope } from './settings.js';
 
+const validateGeminiAuth = (): string | null => {
+  if (!process.env['GEMINI_API_KEY']) {
+    return 'GEMINI_API_KEY environment variable not found. Add that to your environment and try again (no reload needed if using .env)!';
+  }
+  return null;
+};
+
+const validateVertexAIAuth = (): string | null => {
+  const hasVertexProjectLocationConfig =
+    !!process.env['GOOGLE_CLOUD_PROJECT'] &&
+    !!process.env['GOOGLE_CLOUD_LOCATION'];
+  const hasGoogleApiKey = !!process.env['GOOGLE_API_KEY'];
+  if (!hasVertexProjectLocationConfig && !hasGoogleApiKey) {
+    return (
+      'When using Vertex AI, you must specify either:\n' +
+      '• GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_LOCATION environment variables.\n' +
+      '• GOOGLE_API_KEY environment variable (if using express mode).\n' +
+      'Update your environment and try again (no reload needed if using .env)!'
+    );
+  }
+  return null;
+};
+
+const validateOpenAIAuth = (): string | null => {
+  if (!process.env['OPENAI_API_KEY']) {
+    return 'OPENAI_API_KEY environment variable not found. You can enter it interactively or add it to your .env file.';
+  }
+  return null;
+};
+
+const validateBlackboxAPIAuth = (): string | null => {
+  if (!process.env['BLACKBOX_API_KEY']) {
+    return 'BLACKBOX_API_KEY environment variable not found. You can enter it interactively or add it to your .env file.';
+  }
+  return null;
+};
+
 export const validateAuthMethod = (authMethod: string): string | null => {
   loadEnvironment();
-  if (
-    authMethod === AuthType.LOGIN_WITH_GOOGLE ||
-    authMethod === AuthType.CLOUD_SHELL
-  ) {
-    return null;
+  switch (authMethod) {
+    case AuthType.LOGIN_WITH_GOOGLE:
+    case AuthType.CLOUD_SHELL:
+    case AuthType.BLACKBOX_OAUTH:
+    case AuthType.OWL_BAN_UNLIMITED:
+      return null;
+    case AuthType.USE_GEMINI:
+      return validateGeminiAuth();
+    case AuthType.USE_VERTEX_AI:
+      return validateVertexAIAuth();
+    case AuthType.USE_OPENAI:
+      return validateOpenAIAuth();
+    case AuthType.USE_BLACKBOX_API:
+      return validateBlackboxAPIAuth();
+    default:
+      return 'Invalid auth method selected.';
   }
-
-  if (authMethod === AuthType.USE_GEMINI) {
-    if (!process.env['GEMINI_API_KEY']) {
-      return 'GEMINI_API_KEY environment variable not found. Add that to your environment and try again (no reload needed if using .env)!';
-    }
-    return null;
-  }
-
-  if (authMethod === AuthType.USE_VERTEX_AI) {
-    const hasVertexProjectLocationConfig =
-      !!process.env['GOOGLE_CLOUD_PROJECT'] &&
-      !!process.env['GOOGLE_CLOUD_LOCATION'];
-    const hasGoogleApiKey = !!process.env['GOOGLE_API_KEY'];
-    if (!hasVertexProjectLocationConfig && !hasGoogleApiKey) {
-      return (
-        'When using Vertex AI, you must specify either:\n' +
-        '• GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_LOCATION environment variables.\n' +
-        '• GOOGLE_API_KEY environment variable (if using express mode).\n' +
-        'Update your environment and try again (no reload needed if using .env)!'
-      );
-    }
-    return null;
-  }
-
-  if (authMethod === AuthType.USE_OPENAI) {
-    if (!process.env['OPENAI_API_KEY']) {
-      return 'OPENAI_API_KEY environment variable not found. You can enter it interactively or add it to your .env file.';
-    }
-    return null;
-  }
-
-  if (authMethod === AuthType.BLACKBOX_OAUTH) {
-    // Blackbox OAuth doesn't require any environment variables for basic setup
-    // The OAuth flow will handle authentication
-    return null;
-  }
-
-  if (authMethod === AuthType.OWL_BAN_UNLIMITED) {
-    // Owlban OAuth (unlimited access) doesn't require any environment variables
-    // The OAuth flow will handle authentication with unlimited endpoints
-    return null;
-  }
-
-  if (authMethod === AuthType.USE_BLACKBOX_API) {
-    if (!process.env['BLACKBOX_API_KEY']) {
-      return 'BLACKBOX_API_KEY environment variable not found. You can enter it interactively or add it to your .env file.';
-    }
-    return null;
-  }
-
-  return 'Invalid auth method selected.';
 };
 
 export const setOpenAIApiKey = (apiKey: string): void => {
@@ -152,6 +149,31 @@ export const setXaiModel = (model: string): void => {
   process.env['XAI_MODEL'] = model;
 };
 
+export const getBlackboxCloudApiKey = (): string | undefined =>
+  process.env['BB_API_KEY'];
+
+export const setBlackboxCloudApiKey = (apiKey: string): void => {
+  process.env['BB_API_KEY'] = apiKey;
+};
+
+const getCredentialFieldName = (
+  credentialType: 'apiKey' | 'baseUrl' | 'model'
+): string =>
+  credentialType === 'apiKey' ? 'apiKey' : 
+  credentialType === 'baseUrl' ? 'baseUrl' : 
+  'model';
+
+const setSingleCredential = (
+  settings: LoadedSettings,
+  provider: string,
+  credentialType: 'apiKey' | 'baseUrl' | 'model',
+  value: string | undefined
+): void => {
+  if (!value) return;
+  const fieldName = getCredentialFieldName(credentialType);
+  settings.setValue(SettingScope.User, `security.auth.${provider}.${fieldName}`, value);
+};
+
 /**
  * Save provider credentials to settings file for persistence across sessions
  */
@@ -165,78 +187,41 @@ export const saveProviderCredentials = (
   },
 ): void => {
   const { apiKey, baseUrl, model } = credentials;
+  setSingleCredential(settings, provider, 'apiKey', apiKey);
+  setSingleCredential(settings, provider, 'baseUrl', baseUrl);
+  setSingleCredential(settings, provider, 'model', model);
+};
 
-  if (provider === 'openai') {
-    if (apiKey) {
-      settings.setValue(SettingScope.User, 'security.auth.openai.apiKey', apiKey);
-    }
-    if (baseUrl) {
-      settings.setValue(SettingScope.User, 'security.auth.openai.baseUrl', baseUrl);
-    }
-    if (model) {
-      settings.setValue(SettingScope.User, 'security.auth.openai.model', model);
-    }
-  } else if (provider === 'blackbox') {
-    if (apiKey) {
-      settings.setValue(SettingScope.User, 'security.auth.blackbox.apiKey', apiKey);
-    }
-    if (baseUrl) {
-      settings.setValue(SettingScope.User, 'security.auth.blackbox.baseUrl', baseUrl);
-    }
-    if (model) {
-      settings.setValue(SettingScope.User, 'security.auth.blackbox.model', model);
-    }
-  } else if (provider === 'openrouter') {
-    if (apiKey) {
-      settings.setValue(SettingScope.User, 'security.auth.openrouter.apiKey', apiKey);
-    }
-    if (baseUrl) {
-      settings.setValue(SettingScope.User, 'security.auth.openrouter.baseUrl', baseUrl);
-    }
-    if (model) {
-      settings.setValue(SettingScope.User, 'security.auth.openrouter.model', model);
-    }
-  } else if (provider === 'custom') {
-    if (apiKey) {
-      settings.setValue(SettingScope.User, 'security.auth.custom.apiKey', apiKey);
-    }
-    if (baseUrl) {
-      settings.setValue(SettingScope.User, 'security.auth.custom.baseUrl', baseUrl);
-    }
-    if (model) {
-      settings.setValue(SettingScope.User, 'security.auth.custom.model', model);
-    }
-  } else if (provider === 'anthropic') {
-    if (apiKey) {
-      settings.setValue(SettingScope.User, 'security.auth.anthropic.apiKey', apiKey);
-    }
-    if (baseUrl) {
-      settings.setValue(SettingScope.User, 'security.auth.anthropic.baseUrl', baseUrl);
-    }
-    if (model) {
-      settings.setValue(SettingScope.User, 'security.auth.anthropic.model', model);
-    }
-  } else if (provider === 'google') {
-    if (apiKey) {
-      settings.setValue(SettingScope.User, 'security.auth.google.apiKey', apiKey);
-    }
-    if (baseUrl) {
-      settings.setValue(SettingScope.User, 'security.auth.google.baseUrl', baseUrl);
-    }
-    if (model) {
-      settings.setValue(SettingScope.User, 'security.auth.google.model', model);
-    }
-  } else if (provider === 'xai') {
-    if (apiKey) {
-      settings.setValue(SettingScope.User, 'security.auth.xai.apiKey', apiKey);
-    }
-    if (baseUrl) {
-      settings.setValue(SettingScope.User, 'security.auth.xai.baseUrl', baseUrl);
-    }
-    if (model) {
-      settings.setValue(SettingScope.User, 'security.auth.xai.model', model);
-    }
+
+const loadProviderEnvVars = (
+  config: Record<string, unknown> | undefined,
+  envVarPrefix: 'OPENAI' | 'BLACKBOX_API'
+): void => {
+  if (!config) return;
+  const apiKey = config['apiKey'];
+  const baseUrl = config['baseUrl'];
+  const model = config['model'];
+
+  if (apiKey && typeof apiKey === 'string') {
+    const apiKeyVar = envVarPrefix === 'BLACKBOX_API' ? 'BLACKBOX_API_KEY' : 'OPENAI_API_KEY';
+    if (!process.env[apiKeyVar]) process.env[apiKeyVar] = apiKey;
   }
+  if (baseUrl && typeof baseUrl === 'string') {
+    const baseUrlVar = envVarPrefix === 'BLACKBOX_API' ? 'BLACKBOX_API_BASE_URL' : 'OPENAI_BASE_URL';
+    if (!process.env[baseUrlVar]) process.env[baseUrlVar] = baseUrl;
+  }
+  if (model && typeof model === 'string') {
+    const modelVar = envVarPrefix === 'BLACKBOX_API' ? 'BLACKBOX_API_MODEL' : 'OPENAI_MODEL';
+    if (!process.env[modelVar]) process.env[modelVar] = model;
+  }
+};
+
+const loadOpenAICredentials = (config: Record<string, unknown> | undefined): void => {
+  loadProviderEnvVars(config, 'OPENAI');
+};
+
+const loadBlackboxCredentials = (config: Record<string, unknown> | undefined): void => {
+  loadProviderEnvVars(config, 'BLACKBOX_API');
 };
 
 /**
@@ -248,150 +233,32 @@ export const loadProviderCredentialsFromSettings = (
 ): void => {
   const merged = settings.merged;
   const selectedProvider = merged.security?.auth?.selectedProvider;
+  const auth = merged.security?.auth as Record<string, unknown> | undefined;
 
-  // Determine which provider's credentials to load based on selectedProvider
-  // This allows us to distinguish between OpenAI and OpenRouter (both use USE_OPENAI auth type)
-  if (selectedProvider === 'openai') {
-    const openaiApiKey = merged.security?.auth?.openai?.apiKey;
-    const openaiBaseUrl = merged.security?.auth?.openai?.baseUrl;
-    const openaiModel = merged.security?.auth?.openai?.model;
-
-    if (openaiApiKey && !process.env['OPENAI_API_KEY']) {
-      process.env['OPENAI_API_KEY'] = openaiApiKey;
-    }
-    if (openaiBaseUrl && !process.env['OPENAI_BASE_URL']) {
-      process.env['OPENAI_BASE_URL'] = openaiBaseUrl;
-    }
-    if (openaiModel && !process.env['OPENAI_MODEL']) {
-      process.env['OPENAI_MODEL'] = openaiModel;
-    }
-  } else if (selectedProvider === 'openrouter') {
-    const openrouterApiKey = merged.security?.auth?.openrouter?.apiKey;
-    const openrouterBaseUrl = merged.security?.auth?.openrouter?.baseUrl;
-    const openrouterModel = merged.security?.auth?.openrouter?.model;
-
-    if (openrouterApiKey && !process.env['OPENAI_API_KEY']) {
-      // OpenRouter uses OPENAI_API_KEY for compatibility
-      process.env['OPENAI_API_KEY'] = openrouterApiKey;
-    }
-    if (openrouterBaseUrl && !process.env['OPENAI_BASE_URL']) {
-      // OpenRouter uses OPENAI_BASE_URL for compatibility
-      process.env['OPENAI_BASE_URL'] = openrouterBaseUrl;
-    }
-    if (openrouterModel && !process.env['OPENAI_MODEL']) {
-      process.env['OPENAI_MODEL'] = openrouterModel;
-    }
-  } else if (selectedProvider === 'blackbox') {
-    const blackboxApiKey = merged.security?.auth?.blackbox?.apiKey;
-    const blackboxBaseUrl = merged.security?.auth?.blackbox?.baseUrl;
-    const blackboxModel = merged.security?.auth?.blackbox?.model;
-
-    if (blackboxApiKey && !process.env['BLACKBOX_API_KEY']) {
-      process.env['BLACKBOX_API_KEY'] = blackboxApiKey;
-    }
-    if (blackboxBaseUrl && !process.env['BLACKBOX_API_BASE_URL']) {
-      process.env['BLACKBOX_API_BASE_URL'] = blackboxBaseUrl;
-    }
-    if (blackboxModel && !process.env['BLACKBOX_API_MODEL']) {
-      process.env['BLACKBOX_API_MODEL'] = blackboxModel;
-    }
-  } else if (selectedProvider === 'custom') {
-    const customApiKey = merged.security?.auth?.custom?.apiKey;
-    const customBaseUrl = merged.security?.auth?.custom?.baseUrl;
-    const customModel = merged.security?.auth?.custom?.model;
-
-    if (customApiKey && !process.env['OPENAI_API_KEY']) {
-      // Custom provider uses OPENAI_API_KEY for compatibility with OpenAI-compatible APIs
-      process.env['OPENAI_API_KEY'] = customApiKey;
-    }
-    if (customBaseUrl && !process.env['OPENAI_BASE_URL']) {
-      // Custom provider uses OPENAI_BASE_URL for compatibility
-      process.env['OPENAI_BASE_URL'] = customBaseUrl;
-    }
-    if (customModel && !process.env['OPENAI_MODEL']) {
-      process.env['OPENAI_MODEL'] = customModel;
-    }
-  } else if (selectedProvider === 'anthropic') {
-    const anthropicApiKey = merged.security?.auth?.anthropic?.apiKey;
-    const anthropicBaseUrl = merged.security?.auth?.anthropic?.baseUrl;
-    const anthropicModel = merged.security?.auth?.anthropic?.model;
-
-    if (anthropicApiKey && !process.env['OPENAI_API_KEY']) {
-      // Anthropic uses OPENAI_API_KEY for compatibility with OpenAI-compatible APIs
-      process.env['OPENAI_API_KEY'] = anthropicApiKey;
-    }
-    if (anthropicBaseUrl && !process.env['OPENAI_BASE_URL']) {
-      // Anthropic uses OPENAI_BASE_URL for compatibility
-      process.env['OPENAI_BASE_URL'] = anthropicBaseUrl;
-    }
-    if (anthropicModel && !process.env['OPENAI_MODEL']) {
-      process.env['OPENAI_MODEL'] = anthropicModel;
-    }
-  } else if (selectedProvider === 'google') {
-    const googleApiKey = merged.security?.auth?.google?.apiKey;
-    const googleBaseUrl = merged.security?.auth?.google?.baseUrl;
-    const googleModel = merged.security?.auth?.google?.model;
-
-    if (googleApiKey && !process.env['OPENAI_API_KEY']) {
-      // Google uses OPENAI_API_KEY for compatibility with OpenAI-compatible APIs
-      process.env['OPENAI_API_KEY'] = googleApiKey;
-    }
-    if (googleBaseUrl && !process.env['OPENAI_BASE_URL']) {
-      // Google uses OPENAI_BASE_URL for compatibility
-      process.env['OPENAI_BASE_URL'] = googleBaseUrl;
-    }
-    if (googleModel && !process.env['OPENAI_MODEL']) {
-      process.env['OPENAI_MODEL'] = googleModel;
-    }
-  } else if (selectedProvider === 'xai') {
-    const xaiApiKey = merged.security?.auth?.xai?.apiKey;
-    const xaiBaseUrl = merged.security?.auth?.xai?.baseUrl;
-    const xaiModel = merged.security?.auth?.xai?.model;
-
-    if (xaiApiKey && !process.env['OPENAI_API_KEY']) {
-      // xAI uses OPENAI_API_KEY for compatibility with OpenAI-compatible APIs
-      process.env['OPENAI_API_KEY'] = xaiApiKey;
-    }
-    if (xaiBaseUrl && !process.env['OPENAI_BASE_URL']) {
-      // xAI uses OPENAI_BASE_URL for compatibility
-      process.env['OPENAI_BASE_URL'] = xaiBaseUrl;
-    }
-    if (xaiModel && !process.env['OPENAI_MODEL']) {
-      process.env['OPENAI_MODEL'] = xaiModel;
-    }
-  } else {
-    // Fallback: If selectedProvider is not set, try to load based on selectedType
-    // This provides backward compatibility with older configurations
-    const selectedType = merged.security?.auth?.selectedType;
-    
-    if (selectedType === AuthType.USE_OPENAI) {
-      // Try OpenAI first, then OpenRouter
-      const openaiApiKey = merged.security?.auth?.openai?.apiKey;
-      const openaiBaseUrl = merged.security?.auth?.openai?.baseUrl;
-      const openaiModel = merged.security?.auth?.openai?.model;
-
-      if (openaiApiKey && !process.env['OPENAI_API_KEY']) {
-        process.env['OPENAI_API_KEY'] = openaiApiKey;
+  switch (selectedProvider) {
+    case 'openai':
+      loadOpenAICredentials(auth?.['openai'] as Record<string, unknown> | undefined);
+      break;
+    case 'openrouter':
+      loadProviderEnvVars(auth?.['openrouter'] as Record<string, unknown> | undefined, 'OPENAI');
+      break;
+    case 'blackbox':
+      loadBlackboxCredentials(auth?.['blackbox'] as Record<string, unknown> | undefined);
+      break;
+    case 'custom':
+    case 'anthropic':
+    case 'google':
+    case 'xai':
+      if (selectedProvider) {
+        loadProviderEnvVars(auth?.[selectedProvider] as Record<string, unknown> | undefined, 'OPENAI');
       }
-      if (openaiBaseUrl && !process.env['OPENAI_BASE_URL']) {
-        process.env['OPENAI_BASE_URL'] = openaiBaseUrl;
-      }
-      if (openaiModel && !process.env['OPENAI_MODEL']) {
-        process.env['OPENAI_MODEL'] = openaiModel;
-      }
-    } else if (selectedType === AuthType.USE_BLACKBOX_API) {
-      const blackboxApiKey = merged.security?.auth?.blackbox?.apiKey;
-      const blackboxBaseUrl = merged.security?.auth?.blackbox?.baseUrl;
-      const blackboxModel = merged.security?.auth?.blackbox?.model;
-
-      if (blackboxApiKey && !process.env['BLACKBOX_API_KEY']) {
-        process.env['BLACKBOX_API_KEY'] = blackboxApiKey;
-      }
-      if (blackboxBaseUrl && !process.env['BLACKBOX_API_BASE_URL']) {
-        process.env['BLACKBOX_API_BASE_URL'] = blackboxBaseUrl;
-      }
-      if (blackboxModel && !process.env['BLACKBOX_API_MODEL']) {
-        process.env['BLACKBOX_API_MODEL'] = blackboxModel;
+      break;
+    default: {
+      const selectedType = auth?.['selectedType'];
+      if (selectedType === AuthType.USE_OPENAI) {
+        loadOpenAICredentials(auth?.['openai'] as Record<string, unknown> | undefined);
+      } else if (selectedType === AuthType.USE_BLACKBOX_API) {
+        loadBlackboxCredentials(auth?.['blackbox'] as Record<string, unknown> | undefined);
       }
     }
   }

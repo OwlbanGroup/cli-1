@@ -34,6 +34,7 @@ import { extensionsCommand } from '../commands/extensions.js';
 import { mcpCommand } from '../commands/mcp.js';
 import { configureCommand } from '../commands/configure/index.js';
 import { updateCommand } from '../commands/update.js';
+import { createTaskCommand } from '../commands/create-task/index.js';
 import type { Settings } from './settings.js';
 
 import { resolvePath } from '../utils/resolvePath.js';
@@ -134,6 +135,7 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
     )
     .command(configureCommand)
     .command(updateCommand)
+    .command(createTaskCommand)
     .command('$0', 'Launch Blackbox Code', (yargsInstance) =>
       yargsInstance
         .option('model', {
